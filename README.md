@@ -11,7 +11,7 @@ All Features come from [emmylua-analyzer-rust](https://github.com/CppCXY/emmylua
 ## How to develop
 
 1. Open this project with Intellij idea and wait sync
-2. Select and Run `buildPlugin` from gradle window
-3. Run `runide` from gradle
+2. Select and Run `Tasks/intellij platform/buildPlugin` from gradle window
+3. Run `Tasks/intellij platform/runide` from gradle
 
 
