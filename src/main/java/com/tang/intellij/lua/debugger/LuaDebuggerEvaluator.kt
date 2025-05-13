@@ -16,6 +16,7 @@
 
 package com.tang.intellij.lua.debugger
 
+import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.project.IndexNotReadyException
 import com.intellij.openapi.project.Project
@@ -33,36 +34,34 @@ import com.tang.intellij.lua.psi.*
  */
 abstract class LuaDebuggerEvaluator : XDebuggerEvaluator() {
     override fun getExpressionRangeAtOffset(project: Project, document: Document, offset: Int, sideEffectsAllowed: Boolean): TextRange? {
-        var currentRange: TextRange? = null
-        PsiDocumentManager.getInstance(project).commitAndRunReadAction {
+        return ReadAction.nonBlocking<TextRange?> {
             try {
-                val file = PsiDocumentManager.getInstance(project).getPsiFile(document) ?: return@commitAndRunReadAction
-                if (currentRange == null) {
-                    val ele = file.findElementAt(offset)
-                    if (ele != null && ele.node.elementType == LuaTypes.ID) {
-                        val parent = ele.parent
-                        when (parent) {
-                            is LuaFuncDef,
-                            is LuaLocalFuncDef -> currentRange = ele.textRange
-                            is LuaClassMethodName,
-                            is PsiNameIdentifierOwner -> currentRange = parent.textRange
-                        }
+                val file = PsiDocumentManager.getInstance(project).getPsiFile(document) ?: return@nonBlocking null
+
+                val ele = file.findElementAt(offset)
+                if (ele != null && ele.node.elementType == LuaTypes.ID) {
+                    val parent = ele.parent
+                    when (parent) {
+                        is LuaFuncDef,
+                        is LuaLocalFuncDef -> return@nonBlocking ele.textRange
+                        is LuaClassMethodName,
+                        is PsiNameIdentifierOwner -> return@nonBlocking parent.textRange
                     }
                 }
 
-                if (currentRange == null) {
-                    val expr = PsiTreeUtil.findElementOfClassAtOffset(file, offset, LuaExpr::class.java, false)
-                    currentRange = when (expr) {
-                        is LuaCallExpr,
-                        is LuaClosureExpr,
-                        is LuaLiteralExpr -> null
-                        else -> expr?.textRange
-                    }
+                val expr = PsiTreeUtil.findElementOfClassAtOffset(file, offset, LuaExpr::class.java, false)
+                return@nonBlocking when (expr) {
+                    is LuaCallExpr,
+                    is LuaClosureExpr,
+                    is LuaLiteralExpr -> null
+                    else -> expr?.textRange
                 }
-            } catch (ignored: IndexNotReadyException) {
+            } catch (_: IndexNotReadyException) {
+                return@nonBlocking null
             }
         }
-        return currentRange
+            .inSmartMode(project) // wait for indexes to be ready
+            .executeSynchronously() // BLOCK and return the result
     }
 
     override fun evaluate(express: String, xEvaluationCallback: XDebuggerEvaluator.XEvaluationCallback, xSourcePosition: XSourcePosition?) {
