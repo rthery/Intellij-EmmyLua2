@@ -25,6 +25,7 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.ProjectAndLibrariesScope
 import java.io.File
+import java.nio.file.Path
 
 /**
  *
@@ -96,7 +97,8 @@ object LuaFileUtil {
             return perfect
         }
 
-        return VfsUtil.findRelativeFile(filename, project.baseDir);
+        val baseDir = project.basePath?.let { VfsUtil.findFile(Path.of(it), true) }
+        return VfsUtil.findRelativeFile(filename, baseDir)
     }
 
     fun getPluginVirtualFile(path: String): String? {
