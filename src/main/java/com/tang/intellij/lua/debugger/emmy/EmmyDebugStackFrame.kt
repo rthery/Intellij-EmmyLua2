@@ -16,6 +16,7 @@
 
 package com.tang.intellij.lua.debugger.emmy
 
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.ui.ColoredTextContainer
 import com.intellij.ui.SimpleTextAttributes
 import com.intellij.xdebugger.XSourcePosition
@@ -29,9 +30,11 @@ import com.tang.intellij.lua.psi.LuaFileUtil
 class EmmyDebugStackFrame(val data: Stack, val process: EmmyDebugProcessBase) : XStackFrame() {
     private val values = XValueChildrenList()
     private var evaluator: EmmyEvaluator? = null
-    private val sourcePosition by lazy {
-        val file = LuaFileUtil.findFile(process.session.project, data.file)
-        if (file == null) null else XSourcePositionImpl.create(file, data.line - 1)
+    private val _sourcePosition by lazy {
+        ApplicationManager.getApplication().runReadAction<XSourcePosition?> {
+            val file = LuaFileUtil.findFile(process.session.project, data.file)
+            if (file == null) null else XSourcePositionImpl.create(file, data.line - 1)
+        }
     }
 
     init {
@@ -62,6 +65,6 @@ class EmmyDebugStackFrame(val data: Stack, val process: EmmyDebugProcessBase) : 
     }
 
     override fun getSourcePosition(): XSourcePosition? {
-        return sourcePosition
+        return _sourcePosition
     }
 }
